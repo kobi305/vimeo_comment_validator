@@ -1,6 +1,9 @@
 import os
 import sys
 import vimeo
+import colorama
+from colorama import Fore, Back, Style
+
 
 from comment import Comment, InvalidCommentException
 from dotenv import load_dotenv
@@ -14,6 +17,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, InvalidSelectorException
 
 load_dotenv()
+colorama.init(autoreset=True)
 
 ACCOUNT_EMAIL = os.getenv('ACCOUNT_EMAIL')
 ACCOUNT_PSW = os.getenv('ACCOUNT_PSW')
@@ -52,23 +56,23 @@ class VimeoClient:
         response_json = response.json()
 
         if response_json.get('error_code', None):
-            print(response_json['developer_message'])
+            print(f"{Fore.RED}{response_json['developer_message']}")
             self.client = None
         else:
-            print('Start vimeo client')
+            print(f'{Fore.GREEN}Start vimeo client')
 
     def add_comment(self, comment: Comment) -> Comment:
         if not self.client:
-            print('Vimeo client is not defined yet, please init it with valid credentials')
+            print(f'{Fore.RED}Vimeo client is not defined yet, please init it with valid credentials')
 
         comment_url = VIMEO_COMMENT_URL.replace('videoID', comment.video)
         response = self.client.post(comment_url, data={'text': comment.text})
 
         if response.json().get('error', None):
-            print(response.json()['error'])
+            print(f"{Fore.RED}{response.json()['error']}")
         else:
             comment.id = self.__get_comment_id(response)
-            print(f'Comment added to video {comment.video} successfully')
+            print(f'{Fore.GREEN}Comment added to video {comment.video} successfully')
 
         return comment
 
@@ -95,20 +99,21 @@ class VimeoCommentValidator:
             self.__navigate_to_source()
             self.__validate_comment()
         except Exception as e:
-            print(e)
-            print(f'Validator stopped')
+            print(f"{Fore.RED}{e}")
+            print(f'{Fore.RED}Validator stopped')
+        finally:
             self.driver.close()
             sys.exit()
 
     def __validate_comment_fields(self):
-        if not self.comment or any(self.comment.__dict__.values()):
+        if not self.comment or not all(self.comment.__dict__.values()):
             raise InvalidCommentException(self.comment.__dict__)
 
     def _goto_site(self, url: str = VIMEO_URL):
         try:
             self.driver.get(url)
         except Exception as e:
-            raise Exception(f'Opening chrome at {url} failed')
+            raise Exception(f'{Fore.RED}Opening chrome at {url} failed')
 
     def _wait_for_selector(self, attribute, selector: str) -> WebElement:
         try:
@@ -133,8 +138,7 @@ class VimeoCommentValidator:
 
             self.driver.find_element(By.XPATH, SELECTOR['login_submit']).click()
         except Exception as e:
-            print(e)
-            raise Exception('Login failed')
+            raise Exception(f'{e} \nLogin failed')
 
     def __navigate_to_source(self) -> None:
         try:
@@ -145,8 +149,7 @@ class VimeoCommentValidator:
             video_link = self._wait_for_selector(By.XPATH, '//a[@href="' + VIMEO_URL + self.comment.video + '"]')
             video_link.click()
         except Exception as e:
-            print(e)
-            raise Exception('Navigation failed')
+            raise Exception(f'{e} \nNavigation failed')
 
     def __highlight_element(self, element: WebElement):
         self.driver.execute_script("arguments[0].style.backgroundColor = 'lightblue';", element)
@@ -154,7 +157,7 @@ class VimeoCommentValidator:
     def __validate_comment(self) -> None:
         try:
             comments = self._wait_for_selector(By.XPATH, SELECTOR['comments'])
-            my_comment = comments.find_element(By.ID, SELECTOR['comments_id'] + self.comment.id)
+            my_comment = comments.find_element(By.ID, SELECTOR['comment_id'] + self.comment.id)
             self.__highlight_element(my_comment)
 
             name_selector = SELECTOR['comment_username'].replace('COMMENT_ID', self.comment.id)
@@ -164,13 +167,12 @@ class VimeoCommentValidator:
             text = self.driver.find_element(By.XPATH, text_selector).text
 
             if username != ACCOUNT_NAME or text != self.comment.text:
-                print(f'Validation failed: one or more of the details is different'
+                print(f'{Fore.RED}Validation failed: one or more of the details is different'
                       f' username={username} text={text}')
 
-            print(f'Validation passed successfully')
+            print(f'{Fore.GREEN}Validation passed successfully')
         except Exception as e:
-            print(e)
-            raise Exception('Validation failed')
+            raise Exception(f'{e} \nValidation failed')
 
 
 if __name__ == '__main__':

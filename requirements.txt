@@ -4,3 +4,4 @@ PyVimeo
 selenium==4.5.0
 vimeo
 webdriver_manager==3.8.3
+pywin32
