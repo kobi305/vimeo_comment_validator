@@ -20,7 +20,8 @@ Project is created with:
 To run this project, install it locally using pip:
 
 ```
-$ git clone 'github url'
+$ git clone https://github.com/kobi305/vimeo_comment_validator
+$ cd .\vimeo_comment_validator\
 $ pip install -r requirements.txt
 
 # For running the Vimeo app
