@@ -1,10 +1,10 @@
 import pytest
 import os
-from dotenv import load_dotenv
 
+from dotenv import load_dotenv
 from vimeo_comment_validator import VimeoClient, VimeoCommentValidator
 from comment import Comment, InvalidCommentException
-from selenium.common.exceptions import TimeoutException, InvalidSelectorException
+from selenium.common.exceptions import TimeoutException, InvalidSelectorException, NoSuchElementException
 
 load_dotenv()
 
@@ -45,20 +45,39 @@ class TestVimeoClient:
 
 class TestVimeoValidator:
 
-    def test_invalid_element_selector(self, vimeo_validator):
+    def test_invalid_element_selector(self):
+        comment = Comment(video='1', text='2', id='3')
+        vimeo_validator = VimeoCommentValidator(comment=comment)
         vimeo_validator._goto_site()
 
         with pytest.raises(TimeoutException):
             vimeo_validator._wait_for_selector('xpath', "//button[@type='bad_selector']")
+        vimeo_validator.driver.close()
 
-    def test_verify_invalid_comment_fields(self, vimeo_validator):
-        bad_comment = Comment(video='11111111', text='xxxxx')
-        vimeo_validator.comment = bad_comment
+    def test_invalid_comment_fields(self):
+        bad_comment = Comment(video='1', text='a')
+
         with pytest.raises(InvalidCommentException):
-            vimeo_validator.validate_comment()
+            bad_comment.validate()
 
-    # def test_verify_invalid_video_id(self, vimeo_validator):
-    #     pass
+    def test_verify_invalid_video_id(self):
+        """
+        bad video id is video id who not exist or the user not comment on it
+        """
+        bad_video = Comment(video='11111111', text='Nice Video', id='1111111111')
+        vimeo_validator = VimeoCommentValidator(comment=bad_video)
 
-    # def test_verify_invalid_comment_id(self):
-    #     pass
+        with pytest.raises(NoSuchElementException):
+            vimeo_validator._goto_site()
+            vimeo_validator._login()
+            vimeo_validator._search_video()
+            vimeo_validator._pick_comment_video()
+        vimeo_validator.driver.close()
+
+    def test_valid_comment(self, vimeo_client):
+        valid_comment = Comment(video='759557880', text='I like this video')
+        comment = vimeo_client.add_comment(comment=valid_comment)
+        vimeo_validator = VimeoCommentValidator(comment=comment)
+
+        vimeo_validator.validate_comment()
+        assert vimeo_validator.comment.is_verified is True
